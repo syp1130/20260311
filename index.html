@@ -403,6 +403,18 @@
       display: block;
     }
 
+    .save-status {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      min-height: 2rem;
+      border-radius: 8px;
+    }
+    .save-status.success { color: var(--toss-blue); background: rgba(49, 130, 246, 0.08); }
+    .save-status.error { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
     footer {
       margin-top: auto;
       padding-top: 2rem;
@@ -453,12 +465,22 @@
       <div id="ticketList"></div>
     </section>
 
+    <div class="save-status" id="saveStatus" aria-live="polite"></div>
     <footer>
       참고용이며, 당첨을 보장하지 않습니다.
     </footer>
   </div>
 
+  <!-- Supabase: 기본값 사용. Vercel 배포 시 환경 변수(SUPABASE_URL, SUPABASE_ANON_KEY)가 있으면 /api/config 로 덮어씀 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
+    window.SUPABASE_URL = 'https://upnebboolprzgyroztjl.supabase.co';
+    window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwbmViYm9vbHByemd5cm96dGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxOTkxMjQsImV4cCI6MjA4ODc3NTEyNH0.F3nHVYrprm70b2RFKDr8sie0Gay3WnfD8x_dI24WIIs';
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (data) {
+      if (data.SUPABASE_URL) window.SUPABASE_URL = data.SUPABASE_URL;
+      if (data.SUPABASE_ANON_KEY) window.SUPABASE_ANON_KEY = data.SUPABASE_ANON_KEY;
+    }).catch(function () {});
+
     const MIN = 1;
     const MAX = 45;
     const COUNT = 6;
@@ -559,7 +581,60 @@
       setTimeout(() => {
         btnOne.disabled = false;
         btnFive.disabled = false;
+        saveToSupabase(sets);
       }, (COUNT + 1) * BALL_DELAY_MS + 100);
+    }
+
+    function saveToSupabase(sets) {
+      var statusEl = document.getElementById('saveStatus');
+      function setStatus(msg, isError) {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.className = 'save-status' + (isError ? ' error' : msg === '저장됨' ? ' success' : '');
+        statusEl.style.display = msg ? 'block' : 'none';
+        if (msg && msg !== '저장 중...') setTimeout(function () { statusEl.textContent = ''; statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 5000);
+      }
+      var baseUrl = window.SUPABASE_URL;
+      var key = window.SUPABASE_ANON_KEY;
+      if (!baseUrl || !key) {
+        setStatus('Supabase 설정이 없습니다.', true);
+        return;
+      }
+      setStatus('저장 중...', false);
+      var apiUrl = baseUrl.replace(/\/$/, '') + '/rest/v1/lotto_draws';
+      var done = 0;
+      var failed = false;
+      var total = sets.length;
+      sets.forEach(function (set) {
+        fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': key,
+            'Authorization': 'Bearer ' + key,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            main_numbers: set.main,
+            bonus_number: set.bonus
+          })
+        }).then(function (res) {
+          if (res.ok) {
+            done++;
+            if (done === total && !failed) setStatus('저장됨', false);
+          } else {
+            failed = true;
+            res.text().then(function (text) {
+              var msg = 'HTTP ' + res.status;
+              try { var b = JSON.parse(text); if (b.message) msg = b.message; if (b.details) msg += ' - ' + b.details; } catch (e) { if (text) msg += ' ' + text; }
+              setStatus('저장 실패: ' + msg, true);
+            }).catch(function () { setStatus('저장 실패: HTTP ' + res.status, true); });
+          }
+        }).catch(function (err) {
+          failed = true;
+          setStatus('저장 실패: ' + (err.message || '네트워크 오류'), true);
+        });
+      });
     }
 
     document.getElementById('btnOne').addEventListener('click', () => run(1));
