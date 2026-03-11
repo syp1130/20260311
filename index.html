@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로또 번호 추천</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --toss-blue: #3182F6;
+      --toss-blue-light: #E8F3FF;
+      --bg-gradient: linear-gradient(180deg, #F9FAFB 0%, #E8F3FF 50%, #D6E9FF 100%);
+      --text-primary: #191F28;
+      --text-secondary: #6B7684;
+      --card-bg: #FFFFFF;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      --btn-dark: #191F28;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      background: var(--bg-gradient);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* 토스 느낌의 부드러운 3D형 배경 요소 */
+    .bg-shape {
+      position: fixed;
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .bg-shape-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(49, 130, 246, 0.08) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+    }
+    .bg-shape-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, transparent 70%);
+      bottom: 10%;
+      left: -80px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.04);
+    }
+    .bg-shape-3 {
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(49, 130, 246, 0.06) 0%, transparent 70%);
+      bottom: 25%;
+      right: 5%;
+    }
+
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+
+    /* 헤더 - 토스처럼 심플 */
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      margin-bottom: 2.5rem;
+    }
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--toss-blue);
+      letter-spacing: -0.02em;
+    }
+    .header-top .lang {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* 이번 회차 1등 당첨금 배너 */
+    .jackpot-banner {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, rgba(49, 130, 246, 0.12) 0%, rgba(49, 130, 246, 0.06) 100%);
+      border: 1px solid rgba(49, 130, 246, 0.2);
+      border-radius: 12px;
+      text-align: center;
+    }
+    .jackpot-banner .jackpot-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+    .jackpot-banner .jackpot-amount {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--toss-blue);
+      letter-spacing: -0.02em;
+    }
+    .jackpot-banner .jackpot-amount.loading {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .jackpot-banner .jackpot-fallback {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .jackpot-banner .jackpot-fallback a {
+      color: var(--toss-blue);
+      text-decoration: none;
+    }
+    .jackpot-banner .jackpot-fallback a:hover {
+      text-decoration: underline;
+    }
+    .jackpot-banner .jackpot-source {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.35rem;
+    }
+
+    /* 메인 타이틀 - 두 줄, 굵은 검정 */
+    .hero {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-size: clamp(1.75rem, 4.5vw, 2.25rem);
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+    }
+    .hero .subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* 로또 추첨기: 투명 구 + 통로 + 받침 */
+    .machine-wrap {
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .machine-sphere {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.4) 100%);
+      border: 3px solid rgba(255,255,255,0.9);
+      box-shadow:
+        inset 0 -15px 30px rgba(0,0,0,0.06),
+        inset 0 15px 30px rgba(255,255,255,0.5),
+        0 15px 40px rgba(0,0,0,0.08);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: center;
+      justify-content: center;
+      padding: 20px;
+      gap: 4px;
+    }
+    .machine-sphere .machine-ball {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+      animation: float 4s ease-in-out infinite;
+    }
+    .machine-sphere .machine-ball:nth-child(odd) { animation-delay: -1s; }
+    .machine-sphere .machine-ball:nth-child(3n) { animation-delay: -2s; }
+    .machine-sphere .machine-ball:nth-child(5n) { animation-delay: -3s; }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(2px, -3px); }
+      50% { transform: translate(-2px, 2px); }
+      75% { transform: translate(3px, 1px); }
+    }
+    .machine-ball.c-red { background: #f87171; }
+    .machine-ball.c-green { background: #4ade80; }
+    .machine-ball.c-blue { background: #60a5fa; }
+    .machine-ball.c-yellow { background: #facc15; }
+    .machine-ball.c-pink { background: #f472b6; }
+    .machine-ball.c-purple { background: #a78bfa; }
+    .machine-ball.c-orange { background: #fb923c; }
+
+    .machine-chute {
+      width: 56px;
+      height: 28px;
+      margin: -1px 0 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(240,248,255,0.4) 100%);
+      border: 2px solid rgba(255,255,255,0.85);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .machine-base {
+      width: 220px;
+      height: 16px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-top: -1px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* CTA 버튼 - 토스 앱다운로드 스타일: 검정 배경, 흰 글씨 */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-bottom: 2.5rem;
+    }
+    .btn {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      background: var(--btn-dark);
+      color: #FFFFFF;
+    }
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: #FFFFFF;
+      color: var(--text-primary);
+      border: 1px solid #E5E8EB;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .btn-secondary:hover {
+      border-color: #D1D5DB;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .result-section {
+      width: 100%;
+    }
+
+    /* 뽑힌 번호 수거 통 (추첨기 아래 받는 쪽) */
+    .result-section h2 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+    .ticket {
+      background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%);
+      border: 2px solid rgba(255,255,255,0.9);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255,255,255,0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .ticket-label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+    }
+
+    .balls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .ball {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.0625rem;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      transition: transform 0.2s ease;
+    }
+    /* 토스 톤: 파란·회색·흰 계열 + 포인트 */
+    .ball.ball-0 { background: linear-gradient(180deg, #5B9BF8, var(--toss-blue)); }
+    .ball.ball-1 { background: linear-gradient(180deg, #7BA4F8, #4B7DE8); }
+    .ball.ball-2 { background: linear-gradient(180deg, #9BB8FA, #6B94F0); }
+    .ball.ball-3 { background: linear-gradient(180deg, #6B7B8E, #4A5568); }
+    .ball.ball-4 { background: linear-gradient(180deg, #8B9BAE, #6B7B8E); }
+    .ball.ball-5 { background: linear-gradient(180deg, #ABB8C8, #8B9BAE); }
+
+    .ball.bonus {
+      background: linear-gradient(180deg, #FFD93D, #F5B800);
+      color: var(--text-primary);
+      box-shadow: 0 2px 10px rgba(245, 184, 0, 0.35);
+    }
+
+    .bonus-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: 0.25rem;
+    }
+    .bonus-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+
+    .ball.show {
+      animation: ball-from-machine 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* 추첨기(구)에서 공이 떨어져 내려와 착지 시 통통 튀는 연출 */
+    @keyframes ball-from-machine {
+      0% {
+        transform: translateY(-220px) scale(0.5);
+        opacity: 0.9;
+      }
+      55% {
+        transform: translateY(8px) scale(1.08);
+        opacity: 1;
+      }
+      75% {
+        transform: translateY(-3px) scale(1.02);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      color: var(--text-secondary);
+      font-size: 0.9375rem;
+      font-weight: 500;
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px dashed #E5E8EB;
+      box-shadow: var(--card-shadow);
+    }
+    .empty-state p {
+      margin-bottom: 0.25rem;
+    }
+    .result-title-hidden {
+      display: none;
+    }
+    .result-title-visible {
+      display: block;
+    }
+
+    footer {
+      margin-top: auto;
+      padding-top: 2rem;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+  <div class="bg-shape bg-shape-3"></div>
+
+  <div class="page-wrap">
+    <header class="header-top">
+      <span class="logo">Lucky Lotto</span>
+      <span class="lang">KOR</span>
+    </header>
+
+    <div class="jackpot-banner" id="jackpotBanner">
+      <div class="jackpot-label">이번 회차 1등 당첨금 (1인당)</div>
+      <div class="jackpot-amount loading" id="jackpotAmount">조회 중…</div>
+    </div>
+
+    <section class="hero">
+      <h1>행운의 번호<br>한 번에 쉽게</h1>
+      <p class="subtitle">1~45 무작위 6개 + 보너스 번호 추천</p>
+    </section>
+
+    <div class="machine-wrap">
+      <div class="machine-sphere" id="machineSphere"></div>
+      <div class="machine-chute"></div>
+      <div class="machine-base"></div>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="btn btn-primary" id="btnOne">1세트 뽑기</button>
+      <button type="button" class="btn btn-secondary" id="btnFive">5세트 뽑기</button>
+    </div>
+
+    <section class="result-section" id="resultSection">
+      <h2 id="resultTitle" class="result-title-hidden">뽑힌 번호</h2>
+      <div class="empty-state" id="emptyState">
+        <p>버튼을 누르면 추첨기에서 공이 하나씩 떨어져요.</p>
+      </div>
+      <div id="ticketList"></div>
+    </section>
+
+    <footer>
+      참고용이며, 당첨을 보장하지 않습니다.
+    </footer>
+  </div>
+
+  <script>
+    const MIN = 1;
+    const MAX = 45;
+    const COUNT = 6;
+    const BALL_COLORS = ['c-red', 'c-green', 'c-blue', 'c-yellow', 'c-pink', 'c-purple', 'c-orange'];
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const BALL_DELAY_MS = 550;
+
+    function pickSet() {
+      const pool = Array.from({ length: MAX - MIN + 1 }, (_, i) => MIN + i);
+      const shuffled = shuffle(pool);
+      const main = shuffled.slice(0, COUNT);
+      const bonus = shuffled[COUNT];
+      return { main, bonus };
+    }
+
+    function createBall(num, isBonus, index) {
+      const el = document.createElement('span');
+      el.className = 'ball' + (isBonus ? ' bonus' : ' ball-' + (index % 6)) + ' show';
+      el.textContent = num;
+      return el;
+    }
+
+    function fillMachineSphere() {
+      const sphere = document.getElementById('machineSphere');
+      if (!sphere) return;
+      for (let i = 0; i < 38; i++) {
+        const num = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+        const colorClass = BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)];
+        const ball = document.createElement('span');
+        ball.className = 'machine-ball ' + colorClass;
+        ball.textContent = num;
+        sphere.appendChild(ball);
+      }
+    }
+
+    function run(count) {
+      const emptyState = document.getElementById('emptyState');
+      const ticketList = document.getElementById('ticketList');
+      const resultTitle = document.getElementById('resultTitle');
+      emptyState.style.display = 'none';
+      resultTitle.className = 'result-title-visible';
+      ticketList.innerHTML = '';
+
+      const sets = [];
+      for (let i = 0; i < count; i++) sets.push(pickSet());
+
+      const tickets = [];
+      sets.forEach((set, i) => {
+        const ticket = document.createElement('div');
+        ticket.className = 'ticket';
+        const label = document.createElement('div');
+        label.className = 'ticket-label';
+        label.textContent = `세트 ${i + 1}`;
+        ticket.appendChild(label);
+        const balls = document.createElement('div');
+        balls.className = 'balls';
+        ticket.appendChild(balls);
+        ticketList.appendChild(ticket);
+        tickets.push({ balls, set });
+      });
+
+      function revealBall(ballIndex) {
+        tickets.forEach(({ balls, set }) => {
+          if (ballIndex < COUNT) {
+            const ball = createBall(set.main[ballIndex], false, ballIndex);
+            balls.appendChild(ball);
+          } else if (ballIndex === COUNT) {
+            const bonusWrap = document.createElement('span');
+            bonusWrap.className = 'bonus-wrap';
+            const bonusLabel = document.createElement('span');
+            bonusLabel.className = 'bonus-label';
+            bonusLabel.textContent = '보너스';
+            const bonusBall = createBall(set.bonus, true, COUNT);
+            bonusWrap.appendChild(bonusLabel);
+            bonusWrap.appendChild(bonusBall);
+            balls.appendChild(bonusWrap);
+          }
+        });
+      }
+
+      const btnOne = document.getElementById('btnOne');
+      const btnFive = document.getElementById('btnFive');
+      btnOne.disabled = true;
+      btnFive.disabled = true;
+
+      for (let i = 0; i <= COUNT; i++) {
+        setTimeout(() => revealBall(i), i * BALL_DELAY_MS);
+      }
+      setTimeout(() => {
+        btnOne.disabled = false;
+        btnFive.disabled = false;
+      }, (COUNT + 1) * BALL_DELAY_MS + 100);
+    }
+
+    document.getElementById('btnOne').addEventListener('click', () => run(1));
+    document.getElementById('btnFive').addEventListener('click', () => run(5));
+
+    function getLatestDrwNo() {
+      const base = new Date('2002-12-07T00:00:00+09:00');
+      const now = new Date();
+      const weeks = Math.floor((now - base) / (7 * 24 * 60 * 60 * 1000));
+      return weeks + 1;
+    }
+
+    function formatPrize(won) {
+      if (won >= 100000000) {
+        const ok = Math.floor(won / 100000000);
+        const man = Math.floor((won % 100000000) / 10000);
+        if (man > 0) return ok + '억 ' + man.toLocaleString() + '만원';
+        return ok + '억원';
+      }
+      if (won >= 10000) return (won / 10000).toLocaleString() + '만원';
+      return won.toLocaleString() + '원';
+    }
+
+    function fetchJackpot() {
+      const el = document.getElementById('jackpotAmount');
+      const banner = document.getElementById('jackpotBanner');
+      const drwNo = getLatestDrwNo();
+      const apiUrl = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=';
+
+      function setFallback() {
+        el.classList.remove('loading');
+        el.textContent = '';
+        var fallback = document.createElement('div');
+        fallback.className = 'jackpot-fallback';
+        fallback.innerHTML = '브라우저 보안 정책(CORS)으로 당첨금을 불러오지 못했습니다. <a href="https://dhlottery.co.kr" target="_blank" rel="noopener">동행복권</a>에서 확인해 주세요.';
+        banner.appendChild(fallback);
+      }
+
+      function parseData(data) {
+        if (data.returnValue === 'success' && data.firstWinamnt != null) {
+          el.classList.remove('loading');
+          el.textContent = '제 ' + data.drwNo + '회 ' + formatPrize(data.firstWinamnt);
+          return true;
+        }
+        return false;
+      }
+
+      function tryFetch(n, proxyKind) {
+        var target = apiUrl + n;
+        var url = target;
+        if (proxyKind === 'corsproxy') {
+          url = 'https://corsproxy.io/?' + encodeURIComponent(target);
+        } else if (proxyKind === 'allorigins') {
+          url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
+        }
+        return fetch(url)
+          .then(function (res) {
+            if (proxyKind) return res.text();
+            return res.json();
+          })
+          .then(function (body) {
+            var data = typeof body === 'string' ? (function () { try { return JSON.parse(body); } catch (e) { return {}; } })() : body;
+            return parseData(data);
+          });
+      }
+
+      function runTry(proxyKind) {
+        return tryFetch(drwNo, proxyKind)
+          .then(function (ok) {
+            if (ok) return true;
+            return tryFetch(drwNo - 1, proxyKind);
+          });
+      }
+
+      function tryNaverNews() {
+        var naverUrl = 'https://search.naver.com/search.naver?where=news&sm=tab_jum&query=' + encodeURIComponent('로또 1등 당첨금');
+        var url = 'https://corsproxy.io/?' + encodeURIComponent(naverUrl);
+        return fetch(url)
+          .then(function (res) { return res.text(); })
+          .then(function (html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var tit = doc.querySelector('.news_tit') || doc.querySelector('a.news_tit');
+            var fromNews = false;
+            var t = '';
+            if (tit && tit.textContent) {
+              t = tit.textContent.trim().replace(/\s+/g, ' ');
+              if (t.length > 10 && (/\d+회/.test(t) || /\d+억/.test(t))) {
+                fromNews = true;
+              }
+            }
+            if (!fromNews) {
+              var match = html.match(/(?:제?\s*)?\d+회[^<]{5,100}\d+억[^<"]{0,30}/);
+              if (match) {
+                t = match[0].replace(/&amp;/g, '&').replace(/&#\d+;/g, ' ').replace(/\s+/g, ' ').trim();
+                if (t.length > 15) fromNews = true;
+              }
+            }
+            if (fromNews && t) {
+              el.classList.remove('loading');
+              el.textContent = (t.length > 48 ? t.slice(0, 48) + '…' : t);
+              var sub = document.createElement('div');
+              sub.className = 'jackpot-source';
+              sub.textContent = '출처: 네이버 뉴스';
+              banner.appendChild(sub);
+              return true;
+            }
+            return false;
+          })
+          .catch(function () { return false; });
+      }
+
+      runTry(null)
+        .then(function (ok) {
+          if (ok) return true;
+          return runTry('corsproxy');
+        })
+        .then(function (ok) {
+          if (ok) return true;
+          return runTry('allorigins');
+        })
+        .then(function (ok) {
+          if (ok) return true;
+          return tryNaverNews();
+        })
+        .then(function (ok) {
+          if (!ok) setFallback();
+        })
+        .catch(setFallback);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      fillMachineSphere();
+      fetchJackpot();
+    });
+  </script>
+</body>
+</html>
