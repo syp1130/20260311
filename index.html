@@ -96,50 +96,6 @@
       font-weight: 500;
     }
 
-    /* 이번 회차 1등 당첨금 배너 */
-    .jackpot-banner {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.5rem;
-      background: linear-gradient(135deg, rgba(49, 130, 246, 0.12) 0%, rgba(49, 130, 246, 0.06) 100%);
-      border: 1px solid rgba(49, 130, 246, 0.2);
-      border-radius: 12px;
-      text-align: center;
-    }
-    .jackpot-banner .jackpot-label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-      margin-bottom: 0.25rem;
-    }
-    .jackpot-banner .jackpot-amount {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--toss-blue);
-      letter-spacing: -0.02em;
-    }
-    .jackpot-banner .jackpot-amount.loading {
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-    .jackpot-banner .jackpot-fallback {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-    .jackpot-banner .jackpot-fallback a {
-      color: var(--toss-blue);
-      text-decoration: none;
-    }
-    .jackpot-banner .jackpot-fallback a:hover {
-      text-decoration: underline;
-    }
-    .jackpot-banner .jackpot-source {
-      font-size: 0.7rem;
-      color: var(--text-secondary);
-      margin-top: 0.35rem;
-    }
-
     /* 메인 타이틀 - 두 줄, 굵은 검정 */
     .hero {
       text-align: center;
@@ -436,11 +392,6 @@
       <span class="lang">KOR</span>
     </header>
 
-    <div class="jackpot-banner" id="jackpotBanner">
-      <div class="jackpot-label">이번 회차 1등 당첨금 (1인당)</div>
-      <div class="jackpot-amount loading" id="jackpotAmount">조회 중…</div>
-    </div>
-
     <section class="hero">
       <h1>행운의 번호<br>한 번에 쉽게</h1>
       <p class="subtitle">1~45 무작위 6개 + 보너스 번호 추천</p>
@@ -640,135 +591,7 @@
     document.getElementById('btnOne').addEventListener('click', () => run(1));
     document.getElementById('btnFive').addEventListener('click', () => run(5));
 
-    function getLatestDrwNo() {
-      const base = new Date('2002-12-07T00:00:00+09:00');
-      const now = new Date();
-      const weeks = Math.floor((now - base) / (7 * 24 * 60 * 60 * 1000));
-      return weeks + 1;
-    }
-
-    function formatPrize(won) {
-      if (won >= 100000000) {
-        const ok = Math.floor(won / 100000000);
-        const man = Math.floor((won % 100000000) / 10000);
-        if (man > 0) return ok + '억 ' + man.toLocaleString() + '만원';
-        return ok + '억원';
-      }
-      if (won >= 10000) return (won / 10000).toLocaleString() + '만원';
-      return won.toLocaleString() + '원';
-    }
-
-    function fetchJackpot() {
-      const el = document.getElementById('jackpotAmount');
-      const banner = document.getElementById('jackpotBanner');
-      const drwNo = getLatestDrwNo();
-      const apiUrl = 'https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=';
-
-      function setFallback() {
-        el.classList.remove('loading');
-        el.textContent = '';
-        var fallback = document.createElement('div');
-        fallback.className = 'jackpot-fallback';
-        fallback.innerHTML = '브라우저 보안 정책(CORS)으로 당첨금을 불러오지 못했습니다. <a href="https://dhlottery.co.kr" target="_blank" rel="noopener">동행복권</a>에서 확인해 주세요.';
-        banner.appendChild(fallback);
-      }
-
-      function parseData(data) {
-        if (data.returnValue === 'success' && data.firstWinamnt != null) {
-          el.classList.remove('loading');
-          el.textContent = '제 ' + data.drwNo + '회 ' + formatPrize(data.firstWinamnt);
-          return true;
-        }
-        return false;
-      }
-
-      function tryFetch(n, proxyKind) {
-        var target = apiUrl + n;
-        var url = target;
-        if (proxyKind === 'corsproxy') {
-          url = 'https://corsproxy.io/?' + encodeURIComponent(target);
-        } else if (proxyKind === 'allorigins') {
-          url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
-        }
-        return fetch(url)
-          .then(function (res) {
-            if (proxyKind) return res.text();
-            return res.json();
-          })
-          .then(function (body) {
-            var data = typeof body === 'string' ? (function () { try { return JSON.parse(body); } catch (e) { return {}; } })() : body;
-            return parseData(data);
-          });
-      }
-
-      function runTry(proxyKind) {
-        return tryFetch(drwNo, proxyKind)
-          .then(function (ok) {
-            if (ok) return true;
-            return tryFetch(drwNo - 1, proxyKind);
-          });
-      }
-
-      function tryNaverNews() {
-        var naverUrl = 'https://search.naver.com/search.naver?where=news&sm=tab_jum&query=' + encodeURIComponent('로또 1등 당첨금');
-        var url = 'https://corsproxy.io/?' + encodeURIComponent(naverUrl);
-        return fetch(url)
-          .then(function (res) { return res.text(); })
-          .then(function (html) {
-            var doc = new DOMParser().parseFromString(html, 'text/html');
-            var tit = doc.querySelector('.news_tit') || doc.querySelector('a.news_tit');
-            var fromNews = false;
-            var t = '';
-            if (tit && tit.textContent) {
-              t = tit.textContent.trim().replace(/\s+/g, ' ');
-              if (t.length > 10 && (/\d+회/.test(t) || /\d+억/.test(t))) {
-                fromNews = true;
-              }
-            }
-            if (!fromNews) {
-              var match = html.match(/(?:제?\s*)?\d+회[^<]{5,100}\d+억[^<"]{0,30}/);
-              if (match) {
-                t = match[0].replace(/&amp;/g, '&').replace(/&#\d+;/g, ' ').replace(/\s+/g, ' ').trim();
-                if (t.length > 15) fromNews = true;
-              }
-            }
-            if (fromNews && t) {
-              el.classList.remove('loading');
-              el.textContent = (t.length > 48 ? t.slice(0, 48) + '…' : t);
-              var sub = document.createElement('div');
-              sub.className = 'jackpot-source';
-              sub.textContent = '출처: 네이버 뉴스';
-              banner.appendChild(sub);
-              return true;
-            }
-            return false;
-          })
-          .catch(function () { return false; });
-      }
-
-      runTry(null)
-        .then(function (ok) {
-          if (ok) return true;
-          return runTry('corsproxy');
-        })
-        .then(function (ok) {
-          if (ok) return true;
-          return runTry('allorigins');
-        })
-        .then(function (ok) {
-          if (ok) return true;
-          return tryNaverNews();
-        })
-        .then(function (ok) {
-          if (!ok) setFallback();
-        })
-        .catch(setFallback);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      fillMachineSphere();
-      fetchJackpot();
-    });
+    document.addEventListener('DOMContentLoaded', fillMachineSphere);
   </script>
 </body>
 </html>
